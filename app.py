@@ -13,7 +13,7 @@ from flask import Flask, jsonify
 #################################################
 # Database Setup
 #################################################
-engine = create_engine("sqlite:///Resources/hawaii.sqlite")
+engine = create_engine("sqlite:///Resources/hawaii.sqlite?check_same_thread=False")
 
 # reflect an existing database into a new model
 Base = automap_base()
@@ -119,10 +119,17 @@ def tobs():
 
 
 @app.route("/api/v1.0/<start>")
-def start():
+def start(start):
     """Returns a JSON list of the minimum temperature, the average temperature, and the max temperature for a given start date."""
     """Calculates TMIN, TAVG, and TMAX for all dates greater than and equal to the start date."""
+    
+    results = session.query(func.min(Measurement.tobs), func.avg(Measurement.tobs), func.max(Measurement.tobs)).\
+        filter(Measurement.date >= start).all()
 
+    # Convert list of tuples into normal list
+    summary = list(np.ravel(results))
+    
+    return jsonify(summary)
 
 @app.route("/api/v1.0/<start>/<end>")
 def start_end():
