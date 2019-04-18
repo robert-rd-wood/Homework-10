@@ -70,14 +70,15 @@ def precipitation():
     
     # Query precipitation data
     results = session.query(Measurement.date, Measurement.prcp).all()
+    all_prcp = dict(results)
  
-    # Create a dictionary from the row data and append to a list of all_prcp
-    all_prcp = []
-    for date, prcp in results:
-        prcp_dict = {}
-        prcp_dict["date"] = date
-        prcp_dict["prcp"] = prcp
-        all_prcp.append(prcp_dict)
+    # # Create a dictionary from the row data and append to a list of all_prcp
+    # all_prcp = []
+    # for date, prcp in results:
+    #     prcp_dict = {}
+    #     prcp_dict["date"] = date
+    #     prcp_dict["prcp"] = prcp
+    #     all_prcp.append(prcp_dict)
     
     return jsonify(all_prcp)
 
@@ -112,12 +113,7 @@ def tobs():
                             filter(Measurement.date >= year_ago).\
                             filter(Measurement.date <= query_date).all()
 
-    all_tobs = []
-    for date, tobs in results:
-        tobs_dict = {}
-        tobs_dict["date"] = date
-        tobs_dict["tobs"] = tobs
-        all_tobs.append(tobs_dict)
+    all_tobs = dict(results)
     
     return jsonify(all_tobs)
 
