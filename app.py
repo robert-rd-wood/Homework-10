@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import create_engine, func
 
 import datetime as dt
+from datetime import datetime
 
 from flask import Flask, jsonify
 
@@ -40,6 +41,7 @@ def welcome():
     """List all available api routes."""
     return (
         f"Available Routes:<br/>"
+        f"<br/>"
         f"/api/v1.0/precipitation<br/>"
         f"Converts the query results to a Dictionary using date as the key and prcp as the value.<br/>"
         f"Returns the JSON representation of your dictionary.<br/>"
@@ -51,11 +53,11 @@ def welcome():
         f"Query for the dates and temperature observations from a year from the last data point.<br/>"
         f"Returns a JSON list of Temperature Observations (tobs) for the previous year.<br/>"
         f"<br/>"
-        f"/api/v1.0/<start><br/>"
+        f"/api/v1.0/&lt;start&gt;<br/>"
         f"Returns a JSON list of the minimum temperature, the average temperature, and the max temperature for a given start date.<br/>"
         f"Calculates TMIN, TAVG, and TMAX for all dates greater than and equal to the start date.<br/>"
         f"<br/>"
-        f"/api/v1.0/<start>/<end><br/>"
+        f"/api/v1.0/&lt;start&gt;/&lt;end&gt;<br/>"
         f"Returns a JSON list of the minimum temperature, the average temperature, and the max temperature for a given start-end range.<br/>"
         f"Calculates the TMIN, TAVG, and TMAX for dates between the start and end date inclusive."
     )
@@ -65,6 +67,7 @@ def welcome():
 def precipitation():
     """Convert the query results to a Dictionary using date as the key and prcp as the value."""
     """Returns the JSON representation of your dictionary."""
+    
     # Query precipitation data
     results = session.query(Measurement.date, Measurement.prcp).all()
  
@@ -82,6 +85,7 @@ def precipitation():
 @app.route("/api/v1.0/stations")
 def stations():
     """Return a JSON list of stations from the dataset."""
+
     # Query all passengers
     results = session.query(Station.name).all()
 
@@ -95,8 +99,11 @@ def stations():
 def tobs():
     """Query for the dates and temperature observations from a year from the last data point."""
     """Returns a JSON list of Temperature Observations (tobs) for the previous year."""
+
     # Determine most recent data point in database
-    query_date = dt.date(session.query(Measurement.date).order_by(Measurement.date.desc()).first())
+    result = session.query(Measurement.date).order_by(Measurement.date.desc()).first()[0]
+    query_date = datetime.strptime(result,'%Y-%m-%d')
+
     # Calculate date one year prior
     year_ago = query_date - dt.timedelta(days=365)
 
