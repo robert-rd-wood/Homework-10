@@ -10,6 +10,7 @@ from datetime import datetime
 
 from flask import Flask, jsonify
 
+
 #################################################
 # Database Setup
 #################################################
@@ -38,28 +39,38 @@ app = Flask(__name__)
 
 @app.route("/")
 def welcome():
-    """List all available api routes."""
+    """List all available api routes."""    
+
+    # Determine first data point in database
+    first_date = session.query(Measurement.date).order_by(Measurement.date).first()[0]
+
+    # Determine most recent data point in database
+    last_date = session.query(Measurement.date).order_by(Measurement.date.desc()).first()[0]
+
     return (
-        f"Available Routes:<br/>"
         f"<br/>"
-        f"/api/v1.0/precipitation<br/>"
+        f"<h1 align=center>Welcome to the Surf's Up Flask API</h1><br/>"
+        f"<h3>Available Routes:</h3>"
+        f"<b><a href=/api/v1.0/precipitation>/api/v1.0/precipitation</a></b><br/>"
         f"Converts the query results to a Dictionary using date as the key and prcp as the value.<br/>"
         f"Returns the JSON representation of your dictionary.<br/>"
         f"<br/>"
-        f"/api/v1.0/stations<br/>"
+        f"<b><a href=/api/v1.0/stations>/api/v1.0/stations<a></b><br/>"
         f"Returns a JSON list of stations from the dataset.<br/>"
         f"<br/>"
-        f"/api/v1.0/tobs<br/>"
+        f"<b><a href=/api/v1.0/tobs>/api/v1.0/tobs<a></b><br/>"
         f"Query for the dates and temperature observations from a year from the last data point.<br/>"
         f"Returns a JSON list of Temperature Observations (tobs) for the previous year.<br/>"
         f"<br/>"
-        f"/api/v1.0/&lt;start&gt;<br/>"
+        f"<b>/api/v1.0/&lt;start&gt;</b><br/>"
         f"Returns a JSON list of the minimum temperature, the average temperature, and the max temperature for a given start date.<br/>"
         f"Calculates TMIN, TAVG, and TMAX for all dates greater than and equal to the start date.<br/>"
+        f"<i>Note: Available date range is {first_date} to {last_date}.</i><br/>"
         f"<br/>"
-        f"/api/v1.0/&lt;start&gt;/&lt;end&gt;<br/>"
+        f"<b>/api/v1.0/&lt;start&gt;/&lt;end&gt;</b><br/>"
         f"Returns a JSON list of the minimum temperature, the average temperature, and the max temperature for a given start-end range.<br/>"
-        f"Calculates the TMIN, TAVG, and TMAX for dates between the start and end date inclusive."
+        f"Calculates the TMIN, TAVG, and TMAX for dates between the start and end date inclusive.<br/>"
+        f"<i>Note: Available date range is {first_date} to {last_date}.</i>"
     )
 
 
@@ -70,16 +81,11 @@ def precipitation():
     
     # Query precipitation data
     results = session.query(Measurement.date, Measurement.prcp).all()
+
+    # Create dictionary of results
     all_prcp = dict(results)
  
-    # # Create a dictionary from the row data and append to a list of all_prcp
-    # all_prcp = []
-    # for date, prcp in results:
-    #     prcp_dict = {}
-    #     prcp_dict["date"] = date
-    #     prcp_dict["prcp"] = prcp
-    #     all_prcp.append(prcp_dict)
-    
+    # Return jsonified dictionary
     return jsonify(all_prcp)
 
 
@@ -93,6 +99,7 @@ def stations():
     # Convert list of tuples into normal list
     all_stations = list(np.ravel(results))
 
+    # Return jsonified dictionary
     return jsonify(all_stations)
 
 
@@ -113,8 +120,10 @@ def tobs():
                             filter(Measurement.date >= year_ago).\
                             filter(Measurement.date <= query_date).all()
 
+    # Create dictionary of results
     all_tobs = dict(results)
-    
+
+    # Return jsonified dictionary
     return jsonify(all_tobs)
 
 
@@ -122,19 +131,88 @@ def tobs():
 def start(start):
     """Returns a JSON list of the minimum temperature, the average temperature, and the max temperature for a given start date."""
     """Calculates TMIN, TAVG, and TMAX for all dates greater than and equal to the start date."""
-    
+
+    """Begin Error Checking"""
+
+    # Ensure the date passed is prior to the last date for which data is available
+    latest_date = session.query(Measurement.date).order_by(Measurement.date.desc()).first()[0]
+    # If not, return an error message
+    if start > latest_date:
+        return(f"<b>Error:</b> No data available in the specified timeframe.  Please enter a date less than {latest_date}.")
+
+    # If the start date passed is prior to the first date with available data,
+    # reassign start date to the first date with data available (for clarification when printing results)
+    first_date = session.query(Measurement.date).order_by(Measurement.date).first()[0]
+    if start < first_date:
+        start = first_date
+
+    """End Error Checking"""
+
+    # Query temperature data
     results = session.query(func.min(Measurement.tobs), func.avg(Measurement.tobs), func.max(Measurement.tobs)).\
-        filter(Measurement.date >= start).all()
+                            filter(Measurement.date >= start).all()
 
     # Convert list of tuples into normal list
     summary = list(np.ravel(results))
     
-    return jsonify(summary)
+    # Return formatted results
+    return(f"<h3>Temperature results for date range starting {start}:</h3>"
+        f"Minimum: {'{:.2f}'.format(summary[0])} F<br/>"
+        f"Average: {'{:.2f}'.format(summary[1])} F<br/>"
+        f"Maximum: {'{:.2f}'.format(summary[2])} F"
+        )
+
 
 @app.route("/api/v1.0/<start>/<end>")
-def start_end():
+def start_end(start,end):
     """Returns a JSON list of the minimum temperature, the average temperature, and the max temperature for a given start-end range."""
     """Calculates the TMIN, TAVG, and TMAX for dates between the start and end date inclusive."""
+
+    """Begin Error Checking"""
+
+    # Ensure the start date passed is prior to the last date for which data is available
+    latest_date = session.query(Measurement.date).order_by(Measurement.date.desc()).first()[0]
+    # If not, return an error message
+    if start > latest_date:
+        return(f"<b>Error:</b> No data available in the specified timeframe.  Please enter a start date less than {latest_date}.")
+
+    # Ensure the end date passed is more recent than the first date for which data is available
+    first_date = session.query(Measurement.date).order_by(Measurement.date).first()[0]
+    # If not, return an error message
+    if end < first_date:
+        return(f"<b>Error:</b> No data available in the specified timeframe.  Please enter an end date greater than {first_date}.")
+
+    # Ensure the start date passed is prior to the end date passed
+    # If not, return an error message
+    if start > end:
+        return(f"<b>Error:</b> Please ensure the start date entered is prior to the end date.")
+
+    # If the start date passed is prior to the first date with available data,
+    # reassign start date to the first date with data available (for clarification when printing results)
+    if start < first_date:
+        start = first_date
+    
+    # If the end date passed is after the last date with available data,
+    # reassign end date to the last date with data available (for clarification when printing results)
+    if end > latest_date:
+        end = latest_date
+
+    """End Error Checking"""
+
+    # Query temperature data
+    results = session.query(func.min(Measurement.tobs), func.avg(Measurement.tobs), func.max(Measurement.tobs)).\
+                            filter(Measurement.date >= start).\
+                            filter(Measurement.date <= end).all()
+
+    # Convert list of tuples into normal list
+    summary = list(np.ravel(results))
+
+    # Return formatted results
+    return(f"<h3>Temperature results for date range {start} to {end}:</h3>"
+        f"Minimum: {'{:.2f}'.format(summary[0])} F<br/>"
+        f"Average: {'{:.2f}'.format(summary[1])} F<br/>"
+        f"Maximum: {'{:.2f}'.format(summary[2])} F"
+        )
 
 
 if __name__ == '__main__':
