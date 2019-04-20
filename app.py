@@ -142,9 +142,11 @@ def start(start):
 
     # If the start date passed is prior to the first date with available data,
     # reassign start date to the first date with data available (for clarification when printing results)
+    start_adj_note = ""
     first_date = session.query(Measurement.date).order_by(Measurement.date).first()[0]
     if start < first_date:
         start = first_date
+        start_adj_note = " (date adjusted due to data availability)"
 
     """End Error Checking"""
 
@@ -156,7 +158,7 @@ def start(start):
     summary = list(np.ravel(results))
     
     # Return formatted results
-    return(f"<h3>Temperature results for date range starting {start}:</h3>"
+    return(f"<h3>Temperature results for date range starting {start}{start_adj_note}:</h3>"
         f"Minimum: {'{:.2f}'.format(summary[0])} F<br/>"
         f"Average: {'{:.2f}'.format(summary[1])} F<br/>"
         f"Maximum: {'{:.2f}'.format(summary[2])} F"
@@ -189,13 +191,17 @@ def start_end(start,end):
 
     # If the start date passed is prior to the first date with available data,
     # reassign start date to the first date with data available (for clarification when printing results)
+    start_adj_note = ""
     if start < first_date:
         start = first_date
-    
+        start_adj_note = " (start date adjusted due to data availability)"
+
     # If the end date passed is after the last date with available data,
     # reassign end date to the last date with data available (for clarification when printing results)
+    end_adj_note = ""
     if end > latest_date:
         end = latest_date
+        end_adj_note = " (end date adjusted due to data availability)"
 
     """End Error Checking"""
 
@@ -203,12 +209,12 @@ def start_end(start,end):
     results = session.query(func.min(Measurement.tobs), func.avg(Measurement.tobs), func.max(Measurement.tobs)).\
                             filter(Measurement.date >= start).\
                             filter(Measurement.date <= end).all()
-
+    
     # Convert list of tuples into normal list
     summary = list(np.ravel(results))
 
     # Return formatted results
-    return(f"<h3>Temperature results for date range {start} to {end}:</h3>"
+    return(f"<h3>Temperature results for date range {start}{start_adj_note} to {end}{end_adj_note}:</h3>"
         f"Minimum: {'{:.2f}'.format(summary[0])} F<br/>"
         f"Average: {'{:.2f}'.format(summary[1])} F<br/>"
         f"Maximum: {'{:.2f}'.format(summary[2])} F"
